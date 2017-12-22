@@ -20,6 +20,7 @@ except ImportError:
 from asgiref.base_layer import BaseChannelLayer
 from .twisted_utils import defer
 
+from django.utils.module_loading import import_string
 
 class UnsupportedRedis(Exception):
     pass
@@ -522,6 +523,7 @@ class RedisChannelLayer(BaseRedisChannelLayer):
         symmetric_encryption_keys=None,
         stats_prefix="asgi-meta:",
         connection_kwargs=None,
+        redis_client_class="redis.Redis",
     ):
         super(RedisChannelLayer, self).__init__(
             expiry=expiry,
@@ -542,6 +544,7 @@ class RedisChannelLayer(BaseRedisChannelLayer):
         self._connection_list = self._generate_connections(
             self.hosts,
             redis_kwargs=connection_kwargs or {},
+            redis_client_class=import_string(redis_client_class)
         )
         self._receive_index_generator = itertools.cycle(range(len(self.hosts)))
         self._send_index_generator = itertools.cycle(range(len(self.hosts)))
@@ -566,9 +569,9 @@ class RedisChannelLayer(BaseRedisChannelLayer):
                 final_hosts.append("redis://%s:%d/0" % (entry[0], entry[1]))
         return final_hosts
 
-    def _generate_connections(self, hosts, redis_kwargs):
+    def _generate_connections(self, hosts, redis_kwargs, redis_client_class):
         return [
-            redis.Redis.from_url(host, **redis_kwargs)
+            redis_client_class.from_url(host, **redis_kwargs)
             for host in hosts
         ]
 
